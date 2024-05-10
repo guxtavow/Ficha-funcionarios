@@ -1,32 +1,19 @@
 import bcrypt
 import time
 import sys
+import sqlite3
 
-def Entrar():
-    try:    
-        def checar_senha(checagem, hash_senha):
-            return bcrypt.checkpw(checagem.encode('utf-8'),hash_senha)
-
-        pergunta2 = input("Digite a senha criada: ")
-        if checar_senha(pergunta2, Criar_senha):
-            print('Senha está correta.')
-        else:
-            print("Senha incorreta.")
-            
-    except:
-        print("Parece que você não está cadastrado!")
-        Cadastro = input("Deseja se cadastrar? \n.Sim\n.Não\nDigite APENAS sim ou não: ").upper()
-        if Cadastro == "SIM":
-            print("Perfeito! Então vamos dar prosseguimento. Primeiramente:")
-            Criar_senha()
-        elif Cadastro == "NAO": 
-            print("Tudo bem então, até mais!")
-            sys.exit(1)
-        else:
-            print("LEMBRETE: Só é aceitavel SIM ou NAO como resposta!")
-            sys.exit(1)
-
-        
+def senhasSQL():
+    conn = sqlite3.connect('passwords.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS senhas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            hash_senha TEXT UNIQUE
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 def Criar_senha():
     pergunta = input("Digite uma senha: ")
@@ -34,6 +21,39 @@ def Criar_senha():
     senha = pergunta.encode('utf-8')
     key = bcrypt.gensalt()
     hash_senha = bcrypt.hashpw(senha,key)
+
+#INSERIR SENHA NO SQL
+    conn = sqlite3.connect('passwords.db')
+    cursor = conn.cursor()
+    try:
+        # Hash da senha usando bcrypt
+        cursor.execute('INSERT INTO senhas (hash_senha) VALUES (?)', (hash_senha.decode('utf-8'),))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        print("Senha já existe no banco de dados e foi ignorada.")
+        return Entrar()
+    finally:
+        conn.close()
+
     print("Senha criada")
     print()
     time.sleep(1.5)
+
+
+
+def Entrar():
+    def verificar_senha(senha):    
+        conn = sqlite3.connect('passwords.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT hash_senha FROM senhas')
+        senhas_hash = cursor.fetchall()
+        conn.close()
+
+        for hash_salva in senhas_hash:
+            if bcrypt.checkpw(senha.encode('utf-8'), hash_salva[0].encode('utf-8')):
+                return True
+        return False
+    password = input('Digite sua senha de login: ')
+    if verificar_senha(password):
+        print("Acesso permitido!")
+        return True
