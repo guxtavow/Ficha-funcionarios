@@ -91,6 +91,7 @@ def decisoes():
       return decisoes()
   else:
     print("Opa! Parece que você digitou uma opção que não existe. Tente novamente.")
+    print()
     return decisoes()
 
 print()
